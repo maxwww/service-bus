@@ -1,6 +1,7 @@
 package bus
 
 import (
+	"context"
 	"sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -20,4 +21,14 @@ func NewBus(conn *amqp.Connection) *bus {
 		conn:  conn,
 		mutex: new(sync.Mutex),
 	}
+}
+
+func (b *bus) Send(ctx context.Context, msg []byte) ([]byte, error) {
+
+	return nil, nil
+}
+
+func (b *bus) Emit(ctx context.Context, msg []byte) error {
+
+	return nil
 }
