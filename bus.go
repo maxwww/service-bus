@@ -12,7 +12,7 @@ type bus struct {
 	chanel           *amqp.Channel
 	serviceQueueName string
 	replyQueueName   string
-	senders          map[string]chan string
+	senders          map[string]chan []byte
 	mutex            *sync.Mutex
 }
 
@@ -61,7 +61,7 @@ func NewBus(conn *amqp.Connection, queueName string) (*bus, error) {
 		chanel:           chanel,
 		serviceQueueName: queueName,
 		replyQueueName:   replyToQueue.Name,
-		senders:          make(map[string]chan string),
+		senders:          make(map[string]chan []byte),
 		mutex:            new(sync.Mutex),
 	}
 
@@ -69,7 +69,7 @@ func NewBus(conn *amqp.Connection, queueName string) (*bus, error) {
 		for m := range replyToMsgs {
 			b.mutex.Lock()
 			if c, ok := b.senders[m.CorrelationId]; ok {
-				c <- string(m.Body)
+				c <- m.Body
 				delete(b.senders, m.CorrelationId)
 			}
 			b.mutex.Unlock()
@@ -80,7 +80,7 @@ func NewBus(conn *amqp.Connection, queueName string) (*bus, error) {
 }
 
 func (b *bus) Send(ctx context.Context, msg []byte) ([]byte, error) {
-	rCh := make(chan string)
+	rCh := make(chan []byte)
 	id := uuid.New().String()
 
 	b.mutex.Lock()
