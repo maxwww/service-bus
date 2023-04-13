@@ -2,9 +2,10 @@ package bus
 
 import (
 	"context"
-	"sync"
-
+	"fmt"
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"sync"
 )
 
 type bus struct {
@@ -79,8 +80,41 @@ func NewBus(conn *amqp.Connection, queueName string) (*bus, error) {
 }
 
 func (b *bus) Send(ctx context.Context, msg []byte) ([]byte, error) {
+	rCh := make(chan string)
+	id := uuid.New().String()
 
-	return nil, nil
+	b.mutex.Lock()
+	b.senders[id] = rCh
+	b.mutex.Unlock()
+
+	defer func() {
+		b.mutex.Lock()
+		delete(b.senders, id)
+		close(rCh)
+		b.mutex.Unlock()
+	}()
+
+	err := b.chanel.PublishWithContext(ctx,
+		"",                 // exchange
+		b.serviceQueueName, // routing key
+		false,              // mandatory
+		false,              // immediate
+		amqp.Publishing{
+			ContentType:   "text/plain",
+			ReplyTo:       b.replyQueueName,
+			CorrelationId: id,
+			Body:          msg,
+		})
+	return nil, err
+
+	var response []byte
+	select {
+	case response = <-rCh:
+	case <-ctx.Done():
+		return nil, fmt.Errorf("declined by client")
+	}
+
+	return response, nil
 }
 
 func (b *bus) Emit(ctx context.Context, msg []byte) error {
