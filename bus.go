@@ -105,7 +105,9 @@ func (b *bus) Send(ctx context.Context, msg []byte) ([]byte, error) {
 			CorrelationId: id,
 			Body:          msg,
 		})
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
 
 	var response []byte
 	select {
