@@ -9,14 +9,14 @@ type server struct {
 	chanel *amqp.Channel
 }
 
-type ReplyMeta struct {
-	ReplyTo       string
-	CorrelationId string
+type replyMeta struct {
+	replyTo       string
+	correlationId string
 }
-
 type Msg struct {
-	ReplyMeta
-	Body []byte
+	chanel    *amqp.Channel
+	replyMeta replyMeta
+	Body      []byte
 }
 
 func NewServer(conn *amqp.Connection, queueName string, handler chan Msg) (*server, error) {
@@ -54,9 +54,10 @@ func NewServer(conn *amqp.Connection, queueName string, handler chan Msg) (*serv
 	go func() {
 		for m := range replyToMsgs {
 			handler <- Msg{
-				ReplyMeta: ReplyMeta{
-					ReplyTo:       m.ReplyTo,
-					CorrelationId: m.CorrelationId,
+				chanel: sr.chanel,
+				replyMeta: replyMeta{
+					replyTo:       m.ReplyTo,
+					correlationId: m.CorrelationId,
 				},
 				Body: m.Body,
 			}
@@ -66,14 +67,14 @@ func NewServer(conn *amqp.Connection, queueName string, handler chan Msg) (*serv
 	return sr, nil
 }
 
-func (s *server) Reply(ctx context.Context, replyTo ReplyMeta, data []byte) error {
-	err := s.chanel.PublishWithContext(ctx,
-		"",              // exchange
-		replyTo.ReplyTo, // routing key
-		false,           // mandatory
-		false,           // immediate
+func (m *Msg) Reply(ctx context.Context, data []byte) error {
+	err := m.chanel.PublishWithContext(ctx,
+		"",                  // exchange
+		m.replyMeta.replyTo, // routing key
+		false,               // mandatory
+		false,               // immediate
 		amqp.Publishing{
-			CorrelationId: replyTo.CorrelationId,
+			CorrelationId: m.replyMeta.correlationId,
 			Body:          data,
 		})
 
