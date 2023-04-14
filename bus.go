@@ -30,7 +30,7 @@ func NewBus(conn *amqp.Connection, queueName string) (*bus, error) {
 		false,     // exclusive
 		false,     // no-wait
 		amqp.Table{
-			"x-message-ttl": 60000,
+			//"x-message-ttl": 60000,
 		}, // arguments
 	)
 	if err != nil {
