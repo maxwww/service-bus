@@ -8,7 +8,7 @@ type server struct {
 	chanel *amqp.Channel
 }
 
-func newServer(conn *amqp.Connection, queueName string, handler chan []byte) (*server, error) {
+func NewServer(conn *amqp.Connection, queueName string, handler chan []byte) (*server, error) {
 	chanel, err := conn.Channel()
 	if err != nil {
 		return nil, err
