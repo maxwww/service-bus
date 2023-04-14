@@ -1,6 +1,7 @@
 package bus
 
 import (
+	"context"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -8,7 +9,17 @@ type server struct {
 	chanel *amqp.Channel
 }
 
-func NewServer(conn *amqp.Connection, queueName string, handler chan []byte) (*server, error) {
+type ReplyMeta struct {
+	ReplyTo       string
+	CorrelationId string
+}
+
+type Msg struct {
+	ReplyMeta
+	Body []byte
+}
+
+func NewServer(conn *amqp.Connection, queueName string, handler chan Msg) (*server, error) {
 	chanel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -42,9 +53,29 @@ func NewServer(conn *amqp.Connection, queueName string, handler chan []byte) (*s
 
 	go func() {
 		for m := range replyToMsgs {
-			handler <- m.Body
+			handler <- Msg{
+				ReplyMeta: ReplyMeta{
+					ReplyTo:       m.ReplyTo,
+					CorrelationId: m.CorrelationId,
+				},
+				Body: m.Body,
+			}
 		}
 	}()
 
 	return sr, nil
+}
+
+func (s *server) Reply(ctx context.Context, replyTo ReplyMeta, data []byte) error {
+	err := s.chanel.PublishWithContext(ctx,
+		"",              // exchange
+		replyTo.ReplyTo, // routing key
+		false,           // mandatory
+		false,           // immediate
+		amqp.Publishing{
+			CorrelationId: replyTo.CorrelationId,
+			Body:          data,
+		})
+
+	return err
 }
