@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-type bus struct {
+type client struct {
 	chanel           *amqp.Channel
 	serviceQueueName string
 	replyQueueName   string
@@ -16,7 +16,7 @@ type bus struct {
 	mutex            *sync.Mutex
 }
 
-func NewBus(conn *amqp.Connection, queueName string) (*bus, error) {
+func NewClient(conn *amqp.Connection, queueName string) (*client, error) {
 	chanel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func NewBus(conn *amqp.Connection, queueName string) (*bus, error) {
 		nil,               // args
 	)
 
-	b := &bus{
+	cl := &client{
 		chanel:           chanel,
 		serviceQueueName: queueName,
 		replyQueueName:   replyToQueue.Name,
@@ -69,19 +69,19 @@ func NewBus(conn *amqp.Connection, queueName string) (*bus, error) {
 
 	go func() {
 		for m := range replyToMsgs {
-			b.mutex.Lock()
-			if c, ok := b.senders[m.CorrelationId]; ok {
-				c <- m.Body
-				delete(b.senders, m.CorrelationId)
+			cl.mutex.Lock()
+			if cn, ok := cl.senders[m.CorrelationId]; ok {
+				cn <- m.Body
+				delete(cl.senders, m.CorrelationId)
 			}
-			b.mutex.Unlock()
+			cl.mutex.Unlock()
 		}
 	}()
 
-	return b, nil
+	return cl, nil
 }
 
-func (b *bus) Send(ctx context.Context, msg []byte) ([]byte, error) {
+func (b *client) Send(ctx context.Context, msg []byte) ([]byte, error) {
 	rCh := make(chan []byte)
 	id := uuid.New().String()
 
@@ -121,7 +121,7 @@ func (b *bus) Send(ctx context.Context, msg []byte) ([]byte, error) {
 	return response, nil
 }
 
-func (b *bus) Emit(ctx context.Context, msg []byte) error {
+func (b *client) Emit(ctx context.Context, msg []byte) error {
 
 	return nil
 }
