@@ -102,6 +102,9 @@ func (b *bus) Send(ctx context.Context, msg []byte) ([]byte, error) {
 		false,              // mandatory
 		false,              // immediate
 		amqp.Publishing{
+			Headers: amqp.Table{
+				"x-message-ttl": 60000,
+			}, // arguments
 			ContentType:   "text/plain",
 			ReplyTo:       b.replyQueueName,
 			CorrelationId: id,
