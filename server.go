@@ -16,7 +16,7 @@ type replyMeta struct {
 type Msg struct {
 	chanel    *amqp.Channel
 	replyMeta replyMeta
-	Body      []byte
+	Delivery  *amqp.Delivery
 }
 
 func NewServer(conn *amqp.Connection, queueName string, handler chan Msg) (*server, error) {
@@ -59,7 +59,7 @@ func NewServer(conn *amqp.Connection, queueName string, handler chan Msg) (*serv
 					replyTo:       m.ReplyTo,
 					correlationId: m.CorrelationId,
 				},
-				Body: m.Body,
+				Delivery: &m,
 			}
 		}
 	}()
