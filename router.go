@@ -1,13 +1,9 @@
 package bus
 
-import (
-	amqp "github.com/rabbitmq/amqp091-go"
-)
-
-type HandlerFunc func(*amqp.Delivery)
+type HandlerFunc func(*Msg)
 
 type Handler interface {
-	ServeRMQ(*amqp.Delivery)
+	ServeRMQ(*Msg)
 }
 
 type Route struct {
@@ -22,8 +18,8 @@ func NewRouter() *Router {
 	return &Router{}
 }
 
-func (r *Router) ServeRMQ(d *amqp.Delivery) {
-	if path, ok := d.Headers["path"]; ok {
+func (r *Router) ServeRMQ(d *Msg) {
+	if path, ok := d.Delivery.Headers["path"]; ok {
 		var handler HandlerFunc
 		for _, route := range r.routes {
 			if path == route.path {
