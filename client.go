@@ -81,7 +81,7 @@ func NewClient(conn *amqp.Connection, queueName string) (*client, error) {
 	return cl, nil
 }
 
-func (b *client) Send(ctx context.Context, msg []byte) ([]byte, error) {
+func (b *client) Send(ctx context.Context, path string, msg []byte) ([]byte, error) {
 	rCh := make(chan []byte)
 	id := uuid.New().String()
 
@@ -102,6 +102,9 @@ func (b *client) Send(ctx context.Context, msg []byte) ([]byte, error) {
 		false,              // mandatory
 		false,              // immediate
 		amqp.Publishing{
+			Headers: amqp.Table{
+				"path": path,
+			},
 			Expiration:    "60000",
 			ReplyTo:       b.replyQueueName,
 			CorrelationId: id,

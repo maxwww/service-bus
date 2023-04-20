@@ -1,5 +1,7 @@
 package bus
 
+import "fmt"
+
 type HandlerFunc func(*Msg)
 
 type Handler interface {
@@ -29,6 +31,8 @@ func (r *Router) ServeRMQ(d *Msg) {
 		}
 		if handler != nil {
 			handler(d)
+		} else {
+			fmt.Println("404. not found")
 		}
 	}
 }
