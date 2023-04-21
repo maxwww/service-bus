@@ -2,6 +2,7 @@ package bus
 
 import (
 	"context"
+
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -19,32 +20,32 @@ type Msg struct {
 	Delivery  *amqp.Delivery
 }
 
-func NewServer(conn *amqp.Connection, queueName string, handler chan Msg) (*server, error) {
+func NewServer(conn *amqp.Connection, queueName string, router *Router) (*server, error) {
 	chanel, err := conn.Channel()
 	if err != nil {
 		return nil, err
 	}
 
 	_, err = chanel.QueueDeclare(
-		queueName, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
+		queueName,
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	replyToMsgs, err := chanel.Consume(
-		queueName, // queue
-		"",        // consumer
-		true,      // auto-ack
-		false,     // exclusive
-		false,     // no-local
-		false,     // no-wait
-		nil,       // args
+		queueName,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 
 	sr := &server{
@@ -53,14 +54,14 @@ func NewServer(conn *amqp.Connection, queueName string, handler chan Msg) (*serv
 
 	go func() {
 		for m := range replyToMsgs {
-			handler <- Msg{
+			go router.ServeRMQ(&Msg{
 				chanel: sr.chanel,
 				replyMeta: replyMeta{
 					replyTo:       m.ReplyTo,
 					correlationId: m.CorrelationId,
 				},
 				Delivery: &m,
-			}
+			})
 		}
 	}()
 
@@ -69,10 +70,10 @@ func NewServer(conn *amqp.Connection, queueName string, handler chan Msg) (*serv
 
 func (m *Msg) Reply(ctx context.Context, data []byte) error {
 	err := m.chanel.PublishWithContext(ctx,
-		"",                  // exchange
-		m.replyMeta.replyTo, // routing key
-		false,               // mandatory
-		false,               // immediate
+		"",
+		m.replyMeta.replyTo,
+		false,
+		false,
 		amqp.Publishing{
 			CorrelationId: m.replyMeta.correlationId,
 			Body:          data,
